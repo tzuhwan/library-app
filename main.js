@@ -1,13 +1,12 @@
-let myLibrary = [];
-
-const bookKey = {
-  a: "title",
-  b: "author",
-  c: "pages",
-  d: "hasRead"
-}
-
-
+/**
+ * Classes:
+ * Library 
+ * 
+ * book
+ * 
+ * 
+ * 
+ */
 
 // Your web app's Firebase configuration
 // For Firebase JS SDK v7.20.0 and later, measurementId is optional
@@ -25,143 +24,180 @@ var firebaseConfig = {
 firebase.initializeApp(firebaseConfig);
 
 
-function Book(title, author, pages, hasRead) {
-  this.a = title
-  this.b = author
-  this.c = pages
-  this.d = hasRead
-}
+class Library {
+  constructor() {
+    this.booksArray = []
+  }
 
-const database = firebase.database();
-
-function addBookToDatabase(book, library) {
-  database.ref("/library/" + myLibrary.indexOf(book)).set({
-    a: book.a,
-    b: book.b,
-    c: book.c,
-    d: book.d
-  })
-}
-
-
-function addBookToLibrary(book, library) {
-  // do stuff here
-
-  library.push(book);
-  addBookToDatabase(book, library);
-
-}
-
-const hobbit = new Book("The Hobbit", "J.R.R. Tolkien", 295, false);
-
-const americanah = new Book("Americanah", "Adichie", 300, true);
-
-const animalFarm = new Book("Animal Farm", "George Orwell", 190, false);
-
-addBookToLibrary(hobbit, myLibrary);
-addBookToLibrary(americanah, myLibrary);
-addBookToLibrary(animalFarm, myLibrary); dsgosidjgodjgsggjsojgosdjgosdjijoifjaojgfsodjgsdjgosdfjgojdfsogjsdf; ojfsdj; sdfojv; dsojvsdfjvncnovndsonvsdvdsvdsfnvodsnbdsbvdfsv; osdfvn; lsdfnbo; dfsnbf; ondeviceorientationabsolute; dsojvsdfjvncnovndsonvsdvdsvdsfnvodsnbdsbvdfsv
-
-
-
-function removeBook(evt, library) {
-  let book = evt.parentElement.parentElement;
-  console.log(book);
-  console.log(book.dataset.index);
-  library.splice(book.dataset.index, 1);
-  book.remove();
-  console.log(library);
-}
-
-
-function addRemoveBtn(row) {
-  const btnCell = document.createElement('td')
-  const removeBtn = document.createElement('btn');
-  removeBtn.className = "remove-btn";
-  removeBtn.textContent = "Remove";
-  removeBtn.addEventListener('click', function (event) { removeBook(event.target, myLibrary) });
-  btnCell.appendChild(removeBtn);
-  row.appendChild(btnCell);
-}
-
-
-function snapshotToArray(snapshot) {
-  var returnArr = [];
-
-  snapshot.forEach(function (childSnapshot) {
-    var item = childSnapshot.val();
-    item.key = childSnapshot.key;
-
-    returnArr.push(item);
-  });
-
-  return returnArr;
-};
-
-
-function displayBooks(library) {
-  const table = document.querySelector("#table");
-
-  firebase.database().ref('/library').once('value', function (snapshot) {
-    library = snapshotToArray(snapshot);
-    console.log(library)
-    for (book of library) {
-      var row = document.createElement('tr');
-      row.setAttribute("data-index", library.indexOf(book))
-      for (prop in book) {
-        if (prop !== "key") {
-          const propInfo = document.createElement('td');
-          propInfo.textContent = book[prop];
-          row.appendChild(propInfo);
-        }
-      }
-      addRemoveBtn(row);
-      table.appendChild(row);
+  generateUniqueID() {
+    var num = 0
+    for (var i = 0; i < this.booksArray.length; i++) {
+      if (this.booksArray[i].id > num) num = this.booksArray[i].id
     }
-  });
-}
+    return num + 1
+  }
 
+  get booksArray() {
+    return this._booksArray
+  }
 
-function addNewBook() {
-  let title = prompt("Please enter the book title.");
+  set booksArray(value) {
+    this._booksArray = value
+  }
 
-  if (title !== null) {
-    let author = prompt("Please enter the author of the book.");
-    let pages = prompt("Please enter the number of pages.");
-    let read = prompt("Please indicate whether you have read the book.")
+  addRemoveBtn() {
+    const removeBtn = document.createElement('btn')
+    removeBtn.className = "remove-btn"
+    removeBtn.textContent = "Remove"
 
-    let book = new Book(title, author, pages, read);
+    removeBtn.addEventListener('click', (evt) => {
+      let bookRow = evt.target.parentElement;
+      bookRow.remove();
+      const index = this.booksArray.findIndex(x => x.id == bookRow.dataset.index)
+      this.booksArray.splice(index, 1)
+      console.log(this.removeBookFromDatabase(bookRow.dataset.index))
+    })
 
-    myLibrary.push(book);
-    console.log(myLibrary);
-    addBookToDatabase(book, myLibrary);
+    return removeBtn
+  }
 
-
-    const table = document.querySelector("#table");
-    var row = document.createElement('tr');
-    row.setAttribute("data-index", myLibrary.indexOf(book));
-    for (prop in book) {
-      if (prop != "key") {
-        const propInfo = document.createElement('td');
-        propInfo.textContent = book[prop];
-        row.appendChild(propInfo);
-      }
+  displayBook(book) {
+    const table = document.querySelector("#table")
+    const row = document.createElement('tr')
+    row.setAttribute("data-index", book.id)
+    const infos = book.displayInfo()
+    for (var i = 0; i < infos.length; i++) {
+      const text = document.createElement('td');
+      text.textContent = infos[i];
+      row.appendChild(text);
     }
-    addRemoveBtn(row);
-    table.appendChild(row);
+    row.append(this.addRemoveBtn())
+    table.appendChild(row)
+  }
+
+  getBooksFromDatabase() {
+    var database = firebase.database()
+    var databaseBooks = []
+
+    database.ref('/library/').once('value').then((snapshot) => {
+      snapshot.forEach(function (childSnapshot) {
+        var item = childSnapshot.val()
+        item.key = childSnapshot.key
+
+        const book = new Book(childSnapshot.val().title,
+          childSnapshot.val().author,
+          parseInt(childSnapshot.val().pages),
+          childSnapshot.val().hasRead)
+
+        book.id = parseInt(childSnapshot.key)
+        databaseBooks.push(book)
+      })
+      this.booksArray = databaseBooks
+      this.booksArray.forEach(book => this.displayBook(book))
+    })
+  }
+
+  addBookToDatabase(book) {
+    var database = firebase.database()
+    database.ref("/library/" + book.id).set({
+      title: book.title,
+      author: book.author,
+      pages: book.pages,
+      hasRead: book.hasRead
+    })
+  }
+
+  removeBookFromDatabase(bookId) {
+    var database = firebase.database()
+    return database.ref("/library/" + bookId).remove()
+  }
+
+  addBooktoLibrary(book) {
+    book.id = this.generateUniqueID()
+    this.booksArray.push(book)
+    this.addBookToDatabase(book)
+    this.displayBook(book)
   }
 }
 
+class Book {
+  constructor(title, author, pages, hasRead) {
+    this.title = title
+    this.author = author
+    this.pages = pages
+    this.hasRead = hasRead
+  }
 
+  get id() {
+    return this._id
+  }
 
-displayBooks(myLibrary);
-const addBookBtn = document.querySelector('#add-book-btn');
-addBookBtn.addEventListener('click', addNewBook);
+  set id(value) {
+    this._id = value
+  }
 
-const removeBtns = document.querySelectorAll(".remove-btn");
-removeBtns.forEach(function (removeBtn) {
-  removeBtn.addEventListener('click', function (event) { removeBook(event.target, myLibrary) });
-})
+  get title() {
+    return this._title
+  }
 
+  set title(value) {
+    this._title = value
+  }
 
+  get author() {
+    return this._author
+  }
 
+  set author(value) {
+    this._author = value
+  }
+
+  get pages() {
+    return this._pages
+  }
+
+  set pages(value) {
+    this._pages = value
+  }
+
+  get hasRead() {
+    return this._hasRead
+  }
+
+  set hasRead(value) {
+    this._hasRead = value
+  }
+
+  displayInfo() {
+    return [this.title, this.author, this.pages, this.hasRead]
+  }
+
+}
+
+class Interface {
+  _library = null
+
+  constructor(library) {
+    this._library = library
+    this.addBookBtn()
+
+  }
+
+  addBookBtn() {
+    const addBookBtn = document.querySelector('#add-book-btn');
+    addBookBtn.addEventListener('click', () => {
+      let title = prompt("Please enter the book title.")
+
+      if (title !== null) {
+        let author = prompt("Please enter the author of the book.")
+        let pages = prompt("Please enter the number of pages.")
+        let read = prompt("Please indicate whether you have read the book.")
+        this._library.addBooktoLibrary(new Book(title, author, pages, read))
+      }
+    })
+  }
+}
+
+const library = new Library()
+library.getBooksFromDatabase()
+const interface = new Interface(library)
